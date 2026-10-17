@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+    }
+
+    body {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      background: #0B0B10;
+      color: #fff;
+      font-family: 'Barlow Condensed', -apple-system, sans-serif;
+    }
+
+    h1 {
+      font-size: 30px;
+    }
+
+    #n {
+      font-size: 84px;
+      font-weight: 700;
+    }
+
+    p {
+      color: #8E8E93;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      height: 48px;
+      padding: 0 22px;
+      border: none;
+      border-radius: 24px;
+      font: 600 17px inherit;
+      font-family: inherit;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+    }
+
+    button.red {
+      background: #FF1744;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Counter</h1>
+  <p id="who">…</p>
+  <div id="n">0</div>
+  <div class="row">
+    <button class="red" id="add">+1</button>
+    <button id="ping">Notify</button>
+    <button id="bye">Close</button>
+  </div>
+  <script>
+    const pending = {};
+    const post = (m) => window.parent.postMessage(m, '*');
+    const call = (action, payload = {}) => new Promise((resolve) => {
+      const callbackId = 'cb_' + Date.now() + Math.random();
+      pending[callbackId] = resolve;
+      post({ type: 'kphone:callback', action, payload, callbackId, server: true });
+      setTimeout(() => { if (pending[callbackId]) { delete pending[callbackId]; resolve({ success: false }); } }, 10000);
+    });
+    window.addEventListener('message', async (e) => {
+      const d = e.data || {};
+      if (d.type === 'kphone:callback:response' && pending[d.callbackId]) { pending[d.callbackId](d.result); delete pending[d.callbackId]; }
+      if (d.type === 'kphone:init') {
+        document.getElementById('who').textContent = `${d.player.name} · ${d.player.phoneNumber}`;
+        const r = await call('get');
+        if (r.success) document.getElementById('n').textContent = r.count;
+      }
+    });
+    document.getElementById('add').onclick = async () => { const r = await call('add', { by: 1 }); if (r.success) document.getElementById('n').textContent = r.count; };
+    document.getElementById('ping').onclick = () => post({ type: 'kphone:notification', header: 'Counter', message: 'Count is ' + document.getElementById('n').textContent });
+    document.getElementById('bye').onclick = () => post({ type: 'kphone:close' });
+  </script>
+</body>
+
+</html>
